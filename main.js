@@ -1,5 +1,14 @@
 
 
+
+const keepFirstElement = array => {
+	if (array.length > 1) {
+		return array.slice(0, 1); // Slice from index 0 to 1 (exclusive), keeping only the first element
+	} else {
+		return array; // Return the array as is if it has only one element or is empty
+	}
+}
+
 try {
 
 
