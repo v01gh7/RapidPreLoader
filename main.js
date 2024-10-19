@@ -1,4 +1,43 @@
 
+
+async function handleProcessingImagesFromUrl(url) {
+	cacheName = `rapidImageCacher__${ url }`;
+	try {
+		// Check if the images is already cached
+		const cachedImagesSrcs = localStorage.getItem(cacheName);
+		if (cachedImagesSrcs) {
+			console.log('Loading from cache!');
+			return JSON.parse(cachedImagesSrcs);
+		}
+
+		// Fetch the HTML from the server
+		const response = await fetch(url);
+		const html = await response.text();
+
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+		const imagesSrcs = [...doc.querySelectorAll('img')]
+		.filter(image => image.src) // Filter out images without src
+		.map(image => {
+			if (image.src.includes('data:image')) {
+				// If src contains 'data:image', use data-src if available
+				return correctImagePath(image.dataset.src) || image.src;
+			} else {
+				// Otherwise, use the original src
+				return correctImagePath(image.src);
+			}
+		});
+
+		// Cache the images in localStorage
+		localStorage.setItem(cacheName, JSON.stringify(imagesSrcs));
+
+		return imagesSrcs;
+	} catch (error) {
+		console.error('Error fetching:', error);
+		return null;
+	}
+}
+
 const preloadImage = src =>
 	new Promise((resolve, reject) => {
 		if (!src) {
@@ -33,7 +72,7 @@ try {
 		rapidPreloadBody.addEventListener('mouseover', e => {
 			if(e.target.tagName.toLowerCase() === 'a'){
 				if(e.target.href){
-					fetchAndCacheHTMLImagesList(e.target.href).then(async images => handleImagesPreloading(images));
+					handleProcessingImagesFromUrl(e.target.href).then(async images => handleImagesPreloading(images));
 				}
 
 			}
@@ -53,7 +92,7 @@ try {
 			links = keepFirstElement(links);
 		}
 
-		links.map(link => fetchAndCacheHTMLImagesList(link.href).then(async images => handleImagesPreloading(images)));
+		links.map(link => handleProcessingImagesFromUrl(link.href).then(async images => handleImagesPreloading(images)));
 	}
 
 } catch (error) {
