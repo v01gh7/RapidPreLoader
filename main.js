@@ -1,5 +1,21 @@
 
+const preloadImage = src =>
+	new Promise((resolve, reject) => {
+		if (!src) {
+			resolve(); // Resolve immediately if src is empty
+			return;
+		}
+		const image = new Image()
+		image.onload = resolve
+		image.onerror = resolve // Resolve on error too
+		image.src = src
+	})
 
+// Example usage
+
+const handleImagesPreloading = async (images) => {
+	await Promise.all(images.map(src => preloadImage(src))); 
+};
 
 const keepFirstElement = array => {
 	if (array.length > 1) {
