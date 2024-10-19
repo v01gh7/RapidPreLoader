@@ -1,4 +1,12 @@
-
+const correctImagePath = imagePath => {
+	if(!imagePath.includes(location.origin)){
+		if(imagePath[0] != '/'){
+			imagePath = '/' + imagePath;
+		}		
+		imagePath = location.origin + imagePath;
+	}
+	return imagePath;
+};
 
 async function handleProcessingImagesFromUrl(url) {
 	cacheName = `rapidImageCacher__${ url }`;
