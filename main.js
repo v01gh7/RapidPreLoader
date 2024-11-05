@@ -46,6 +46,7 @@ async function handleProcessingImagesFromUrl(url) {
 		try {
 			// Cache the images in localStorage
 			localStorage.setItem(cacheName, JSON.stringify(imagesSrcs));
+		}
 		catch (error) {
 			console.log('Local storage is full. Cleaning up...');
 			cleanLocalStorage(); 
