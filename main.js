@@ -1,3 +1,10 @@
+function cleanLocalStorage() {
+  // Clear all local storage items
+  localStorage.clear();
+  console.log('Local storage has been cleared.');
+}
+
+
 const correctImagePath = imagePath => {
 	if(!imagePath.includes(location.origin)){
 		if(imagePath[0] != '/'){
@@ -36,8 +43,13 @@ async function handleProcessingImagesFromUrl(url) {
 			}
 		});
 
-		// Cache the images in localStorage
-		localStorage.setItem(cacheName, JSON.stringify(imagesSrcs));
+		try {
+			// Cache the images in localStorage
+			localStorage.setItem(cacheName, JSON.stringify(imagesSrcs));
+		catch (error) {
+			console.log('Local storage is full. Cleaning up...');
+			cleanLocalStorage(); 
+		}
 
 		return imagesSrcs;
 	} catch (error) {
@@ -88,7 +100,7 @@ try {
 	}
 
 
-	// TODO: track current page and load next page if rapidPreLoadAllPages is false (means load only next page not all from navigation)
+	// TODO: track current page and load next page if rapidPreLoadAllPages is false (means load only next page not all from navigation)`
 
 	// prealod next page
 	const rapidPreLoadAllPages = true;
