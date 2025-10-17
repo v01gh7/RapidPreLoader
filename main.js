@@ -44,7 +44,7 @@ async function handleProcessingAssetsFromUrl(url) {
 	}
 
 	RapidCacheState.set(url, 'loading');
-	const cacheKey = `rapidAssetCache__$ { url }`;
+	const cacheKey = `rapidAssetCache__${ url }`;
 
 	try {
 		const response = await fetch(url, { method: 'GET', credentials: 'omit' });
