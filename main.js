@@ -12,7 +12,7 @@ try {
 	const meta = JSON.parse(localStorage.getItem(LS_META_KEY) || '{}');
 	if (meta.preloaded) meta.preloaded.forEach(a => PreloadedAssets.add(a));
 	if (meta.state) Object.entries(meta.state).forEach(([url, state]) => RapidCacheState.set(url, state));
-	console.log(`♻️ Restored cache state (${PreloadedAssets.size} assets, ${RapidCacheState.size} pages)`);
+	console.log(`♻️ Restored cache state (${ PreloadedAssets.size } assets, ${ RapidCacheState.size } pages)`);
 } catch {
 	console.warn('⚠️ Failed to restore cache meta');
 }
@@ -56,7 +56,7 @@ function isItPageUrl(url) {
 
 // === TTL CHECKER ===
 function isCacheValid(url) {
-	const key = `${LS_PAGE_PREFIX}${url}`;
+	const key = `${ LS_PAGE_PREFIX }${ url }`;
 	const stored = localStorage.getItem(key);
 	if (!stored) return false;
 
@@ -90,7 +90,7 @@ function cleanupExpiredCaches() {
 	}
 
 	if (keysToDelete.length) {
-		console.log(`🧼 Removing ${keysToDelete.length} expired caches...`);
+		console.log(`🧼 Removing ${ keysToDelete.length } expired caches...`);
 		keysToDelete.forEach(k => localStorage.removeItem(k));
 		saveMeta();
 	}
@@ -105,14 +105,14 @@ async function handleProcessingAssetsFromUrl(url) {
 
 	// Проверяем TTL и наличие кэша
 	if (isCacheValid(url)) {
-		const cached = JSON.parse(localStorage.getItem(`${LS_PAGE_PREFIX}${url}`));
-		console.log(`📦 Using cached assets for: ${url}`);
+		const cached = JSON.parse(localStorage.getItem(`${ LS_PAGE_PREFIX }${ url }`));
+		console.log(`📦 Using cached assets for: ${ url }`);
 		RapidCacheState.set(url, 'cached');
 		return cached.assets;
 	}
 
 	if (RapidCacheState.get(url) === 'loading') {
-		console.log(`⏳ Already loading: ${url}`);
+		console.log(`⏳ Already loading: ${ url }`);
 		return [];
 	}
 
@@ -120,7 +120,7 @@ async function handleProcessingAssetsFromUrl(url) {
 
 	try {
 		const response = await fetch(url, { method: 'GET', credentials: 'omit' });
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		if (!response.ok) throw new Error(`HTTP ${ response.status }`);
 		const html = await response.text();
 
 		const parser = new DOMParser();
@@ -141,10 +141,10 @@ async function handleProcessingAssetsFromUrl(url) {
 				const base = match[1];
 				const firstExt = match[2];
 				const secondExt = match[3];
-				result.push(`${base}.${firstExt}`, `${base}.${secondExt}`);
+				result.push(`${ base }.${ firstExt }`, `${ base }.${ secondExt }`);
 			} else {
 				const baseMatch = src.match(/(.*)\.(jpg|jpeg|png)$/i);
-				if (baseMatch) result.push(`${baseMatch[1]}.webp`);
+				if (baseMatch) result.push(`${ baseMatch[1] }.webp`);
 			}
 			return [...new Set(result.map(correctAssetPath))];
 		});
@@ -154,7 +154,7 @@ async function handleProcessingAssetsFromUrl(url) {
 		const allAssets = [...new Set([...images, ...css, ...scripts].filter(Boolean))];
 
 		try {
-			localStorage.setItem(`${LS_PAGE_PREFIX}${url}`, JSON.stringify({ timestamp: Date.now(), assets: allAssets }));
+			localStorage.setItem(`${ LS_PAGE_PREFIX }${ url }`, JSON.stringify({ timestamp: Date.now(), assets: allAssets }));
 			RapidCacheState.set(url, 'cached');
 			saveMeta();
 		} catch (e) {
@@ -164,7 +164,7 @@ async function handleProcessingAssetsFromUrl(url) {
 
 		return allAssets;
 	} catch (error) {
-		console.error(`❌ Error fetching ${url}:`, error.message);
+		console.error(`❌ Error fetching ${ url }:`, error.message);
 		RapidCacheState.set(url, 'error');
 		return [];
 	}
@@ -209,9 +209,9 @@ async function handleAssetsPreloading(assets) {
 	if (!assets?.length) return;
 	const newAssets = assets.filter(src => !PreloadedAssets.has(normalizeUrl(src)));
 	if (!newAssets.length) return;
-	console.log(`🌀 Preloading ${newAssets.length} new assets...`);
+	console.log(`🌀 Preloading ${ newAssets.length } new assets...`);
 	await Promise.all(newAssets.map(preloadAsset));
-	console.log(`✅ Finished preloading (${newAssets.length})`);
+	console.log(`✅ Finished preloading (${ newAssets.length })`);
 	saveMeta();
 }
 
@@ -254,7 +254,7 @@ async function preloadAllSiteContent() {
 	for (const url of uniqueLinks) {
 		if (!isItPageUrl(url)) continue;
 		i++;
-		console.log(`➡️ [${i}/${uniqueLinks.length}] Preloading page: ${url}`);
+		console.log(`➡️ [${ i }/${ uniqueLinks.length }] Preloading page: ${ url }`);
 		const assets = await handleProcessingAssetsFromUrl(url);
 		await handleAssetsPreloading(assets);
 	}
