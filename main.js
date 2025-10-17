@@ -1,5 +1,5 @@
 // === CONFIG ===
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 часов
+const CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 6 часов
 const LS_PAGE_PREFIX = 'rapidAssetCache__';
 const LS_META_KEY = 'rapidCacheMeta';
 
@@ -67,6 +67,32 @@ function isCacheValid(url) {
 		return !expired;
 	} catch {
 		return false;
+	}
+}
+
+// === CLEANUP OLD CACHES ===
+function cleanupExpiredCaches() {
+	const now = Date.now();
+	const keysToDelete = [];
+
+	for (let i = 0; i < localStorage.length; i++) {
+		const key = localStorage.key(i);
+		if (key && key.startsWith(LS_PAGE_PREFIX)) {
+			try {
+				const data = JSON.parse(localStorage.getItem(key));
+				if (!data?.timestamp || now - data.timestamp > CACHE_TTL_MS) {
+					keysToDelete.push(key);
+				}
+			} catch {
+				keysToDelete.push(key);
+			}
+		}
+	}
+
+	if (keysToDelete.length) {
+		console.log(`🧼 Removing ${keysToDelete.length} expired caches...`);
+		keysToDelete.forEach(k => localStorage.removeItem(k));
+		saveMeta();
 	}
 }
 
@@ -204,6 +230,7 @@ document.addEventListener('mouseover', e => {
 
 // === PAGINATION AUTO PRELOAD ===
 (async () => {
+	cleanupExpiredCaches(); // 🧹 вызываем при старте
 	const rapidPreLoadAllPages = true;
 	let links = [...document.querySelectorAll('a[href*="page-"], a[href*="?page="]')];
 	if (!rapidPreLoadAllPages && links.length > 1) links = [links[0]];
@@ -235,4 +262,7 @@ async function preloadAllSiteContent() {
 	saveMeta();
 }
 
-window.addEventListener('load', () => setTimeout(preloadAllSiteContent, 3000));
+window.addEventListener('load', () => {
+	cleanupExpiredCaches(); // 🧽 вызываем ещё раз при загрузке
+	setTimeout(preloadAllSiteContent, 3000);
+});
