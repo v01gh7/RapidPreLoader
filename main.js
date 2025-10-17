@@ -1,121 +1,148 @@
+
+// === GLOBAL CACHE MAP ===
+const RapidCacheState = new Map(); // key: url, value: 'loading' | 'cached' | 'error'
+
+// === HELPERS ===
 function cleanLocalStorage() {
-  // Clear all local storage items
-  localStorage.clear();
-  console.log('Local storage has been cleared.');
+	console.log('Clearing localStorage...');
+	localStorage.clear();
 }
 
-
-const correctImagePath = imagePath => {
-	if(!imagePath.includes(location.origin)){
-		if(imagePath[0] != '/'){
-			imagePath = '/' + imagePath;
-		}		
+function correctAssetPath(imagePath) {
+	if (!imagePath) return '';
+	if (!imagePath.includes('http') && !imagePath.includes(location.origin)) {
+		if (imagePath[0] !== '/') imagePath = '/' + imagePath;
 		imagePath = location.origin + imagePath;
 	}
 	return imagePath;
-};
+}
 
-async function handleProcessingImagesFromUrl(url) {
-	cacheName = `rapidImageCacher__${ url }`;
+// === CORE LOADER ===
+async function handleProccesingAssetFromUrl(url) {
+	if (!url) return [];
+	if (RapidCacheState.get(url) === 'loading') {
+		console.log(`Skipping: already loading ${ url }`);
+		return [];
+	}
+	if (RapidCacheState.get(url) === 'cached') {
+		console.log(`Loaded from cache state: ${ url }`);
+		const cached = localStorage.getItem(`rapidImageCacher__${ url }`);
+		if (cached) return JSON.parse(cached);
+	}
+
+	RapidCacheState.set(url, 'loading');
+	const cacheName = `rapidImageCacher__${ url }`;
+
 	try {
-		// Check if the images is already cached
+		// localStorage cache
 		const cachedImagesSrcs = localStorage.getItem(cacheName);
 		if (cachedImagesSrcs) {
-			console.log('Loading from cache!');
+			RapidCacheState.set(url, 'cached');
 			return JSON.parse(cachedImagesSrcs);
 		}
 
-		// Fetch the HTML from the server
 		const response = await fetch(url);
 		const html = await response.text();
-
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(html, 'text/html');
-		const imagesSrcs = [...doc.querySelectorAll('img')]
-		.filter(image => image.src) // Filter out images without src
-		.map(image => {
-			if (image.src.includes('data:image')) {
-				// If src contains 'data:image', use data-src if available
-				return correctImagePath(image.dataset.src) || image.src;
-			} else {
-				// Otherwise, use the original src
-				return correctImagePath(image.src);
-			}
-		});
+
+		const images = [...doc.querySelectorAll('img[src], img[data-src]')]
+			.map(img => correctAssetPath(img.src || img.dataset.src));
+
+		const css = [...doc.querySelectorAll('link[rel="stylesheet"]')]
+			.map(link => correctAssetPath(link.href));
+
+		const scripts = [...doc.querySelectorAll('script[src]')]
+			.map(script => correctAssetPath(script.src));
+
+		const allAssets = [...images, ...css, ...scripts].filter(Boolean);
 
 		try {
-			// Cache the images in localStorage
-			localStorage.setItem(cacheName, JSON.stringify(imagesSrcs));
-		}
-		catch (error) {
-			console.log('Local storage is full. Cleaning up...');
-			cleanLocalStorage(); 
+			localStorage.setItem(cacheName, JSON.stringify(allAssets));
+			RapidCacheState.set(url, 'cached');
+		} catch (e) {
+			console.warn('LocalStorage full — cleaning...');
+			cleanLocalStorage();
 		}
 
-		return imagesSrcs;
+		return allAssets;
 	} catch (error) {
-		console.error('Error fetching:', error);
-		return null;
+		console.error('Error fetching:', url, error);
+		RapidCacheState.set(url, 'error');
+		return [];
 	}
 }
 
-const preloadImage = src =>
-	new Promise((resolve, reject) => {
-		if (!src) {
-			resolve(); // Resolve immediately if src is empty
-			return;
+// === PRELOADERS ===
+const preloadAsset = src =>
+	new Promise(resolve => {
+		if (!src) return resolve();
+		if (src.endsWith('.js')) {
+			const s = document.createElement('script');
+			s.src = src;
+			s.onload = resolve;
+			s.onerror = resolve;
+			document.head.appendChild(s);
+		} else if (src.endsWith('.css')) {
+			const l = document.createElement('link');
+			l.rel = 'stylesheet';
+			l.href = src;
+			l.onload = resolve;
+			l.onerror = resolve;
+			document.head.appendChild(l);
+		} else {
+			const img = new Image();
+			img.onload = resolve;
+			img.onerror = resolve;
+			img.src = src;
 		}
-		const image = new Image()
-		image.onload = resolve
-		image.onerror = resolve // Resolve on error too
-		image.src = src
-	})
+	});
 
-// Example usage
-
-const handleImagesPreloading = async (images) => {
-	await Promise.all(images.map(src => preloadImage(src))); 
-};
-
-const keepFirstElement = array => {
-	if (array.length > 1) {
-		return array.slice(0, 1); // Slice from index 0 to 1 (exclusive), keeping only the first element
-	} else {
-		return array; // Return the array as is if it has only one element or is empty
-	}
+async function handleImagesPreloading(assets) {
+	if (!assets?.length) return;
+	console.log(`Preloading ${ assets.length } assets...`);
+	await Promise.all(assets.map(src => preloadAsset(src)));
+	console.log('✅ Preloaded:', assets.length);
 }
 
-try {
+// === MAIN LISTENERS ===
+document.addEventListener('mouseover', e => {
+	const a = e.target.closest('a');
+	if (!a || !a.href) return;
+	if (!a.href.includes(location.origin)) return;
+	if (a.dataset.preloading) return; // don't double trigger
 
-
-	rapidPreloadBody = document.querySelector('body');
-	if(rapidPreloadBody){
-		rapidPreloadBody.addEventListener('mouseover', e => {
-			if(e.target.tagName.toLowerCase() === 'a'){
-				if(e.target.href){
-					handleProcessingImagesFromUrl(e.target.href).then(async images => handleImagesPreloading(images));
-				}
-
-			}
+	a.dataset.preloading = 'true';
+	handleProccesingAssetFromUrl(a.href)
+		.then(assets => handleImagesPreloading(assets))
+		.finally(() => {
+			setTimeout(() => delete a.dataset.preloading, 2000);
 		});
-	}
+});
 
-
-	// TODO: track current page and load next page if rapidPreLoadAllPages is false (means load only next page not all from navigation)`
-
-	// prealod next page
+// === OPTIONAL: preload pagination or other known links ===
+(async () => {
 	const rapidPreLoadAllPages = true;
-	let links = [...document.querySelectorAll('a[href*="page-"], a[href*="?page="]')]; // Select all links containing "page-"
-
-
-	if(links.length > 0){
-		if(!rapidPreLoadAllPages){
-			links = keepFirstElement(links);
-		}
-
-		links.map(link => handleProcessingImagesFromUrl(link.href).then(async images => handleImagesPreloading(images)));
+	let links = [...document.querySelectorAll('a[href*="page-"], a[href*="?page="]')];
+	if (!rapidPreLoadAllPages && links.length > 1) links = [links[0]];
+	for (const link of links) {
+		const assets = await handleProccesingAssetFromUrl(link.href);
+		await handleImagesPreloading(assets);
 	}
+})();
 
-} catch (error) {
-	console.error('CANNOT SOME PRELOAD:', error);
+// === NEW FEATURE: preload all links on the site ===
+async function preloadAllSiteContent() {
+	console.log('???? Starting full site preloading...');
+	const allLinks = [...document.querySelectorAll('a[href]')]
+		.map(a => a.href)
+		.filter(h => h.includes(location.origin));
+
+	const uniqueLinks = [...new Set(allLinks)];
+	for (const url of uniqueLinks) {
+		console.log(`➡️ Preloading page: ${ url }`);
+		const assets = await handleProccesingAssetFromUrl(url);
+		await handleImagesPreloading(assets);
+	}
+	console.log('✅ Finished full site preloading!');
 }
