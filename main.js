@@ -56,7 +56,17 @@ async function handleProcessingAssetsFromUrl(url) {
 
 		const images = [...doc.querySelectorAll('img[src], img[data-src]')]
 			.flatMap(img => {
-				let rawSrc = img.getAttribute('src') || img.dataset.src;
+				
+				let rawSrc = img.getAttribute('src');
+				// если src — base64, то берём data-src
+				if (rawSrc?.startsWith('data:image')) {
+					rawSrc = img.dataset.src || rawSrc;
+				} else {
+					rawSrc = rawSrc || img.dataset.src;
+				}
+
+				if (!rawSrc) return [];				
+				
 				const src = correctAssetPath(rawSrc);
 				if (!src) return [];
 
