@@ -198,8 +198,8 @@ document.addEventListener('mouseover', e => {
 		const match = link.href.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
 		if (!match) {
 			const assets = await handleProcessingAssetsFromUrl(link.href);
+			await handleAssetsPreloading(assets);
 		}
-		await handleAssetsPreloading(assets);
 	}
 })();
 
