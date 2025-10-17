@@ -55,7 +55,36 @@ async function handleProcessingAssetsFromUrl(url) {
 		const doc = parser.parseFromString(html, 'text/html');
 
 		const images = [...doc.querySelectorAll('img[src], img[data-src]')]
-			.map(img => correctAssetPath(img.getAttribute('src') || img.dataset.src));
+			.flatMap(img => {
+				let rawSrc = img.getAttribute('src') || img.dataset.src;
+				const src = correctAssetPath(rawSrc);
+				if (!src) return [];
+
+				const result = [src];
+
+				// Проверяем наличие двойного расширения (например .jpg.webp)
+				const match = src.match(/(.*)\.(jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
+				if (match) {
+					const base = match[1];
+					const firstExt = match[2];
+					const secondExt = match[3];
+
+					// добавляем оба варианта
+					result.push(`${ base }.${ firstExt }`);
+					result.push(`${ base }.${ secondExt }`);
+				} else {
+					// если просто один формат, добавим возможные дополнительные
+					const baseMatch = src.match(/(.*)\.(jpg|jpeg|png)$/i);
+					if (baseMatch) {
+						const base = baseMatch[1];
+						result.push(`${ base }.webp`);
+					}
+				}
+
+				// нормализуем и убираем дубли
+				return [...new Set(result.map(correctAssetPath))];
+			});
+
 
 		const css = [...doc.querySelectorAll('link[rel="stylesheet"][href]')]
 			.map(link => correctAssetPath(link.href));
