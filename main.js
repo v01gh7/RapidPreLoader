@@ -30,6 +30,7 @@ function correctAssetPath(assetPath) {
 async function handleProcessingAssetsFromUrl(url) {
 	if (!url) return [];
 
+
 	url = normalizeUrl(url);
 	if (RapidCacheState.get(url) === 'loading') {
 		console.log(`⏳ Skipping — already loading: ${ url }`);
@@ -177,11 +178,15 @@ document.addEventListener('mouseover', e => {
 	if (a.dataset.preloading) return;
 
 	a.dataset.preloading = 'true';
-	handleProcessingAssetsFromUrl(a.href)
-		.then(assets => handleAssetsPreloading(assets))
-		.finally(() => {
-			setTimeout(() => delete a.dataset.preloading, 2000);
-		});
+	const match = a.href.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
+	if (!match) {
+		handleProcessingAssetsFromUrl(a.href)
+			.then(assets => handleAssetsPreloading(assets))
+			.finally(() => {
+				setTimeout(() => delete a.dataset.preloading, 2000);
+		});		
+	}
+
 });
 
 // === OPTIONAL: preload pagination or other known links ===
@@ -190,7 +195,10 @@ document.addEventListener('mouseover', e => {
 	let links = [...document.querySelectorAll('a[href*="page-"], a[href*="?page="]')];
 	if (!rapidPreLoadAllPages && links.length > 1) links = [links[0]];
 	for (const link of links) {
-		const assets = await handleProcessingAssetsFromUrl(link.href);
+		const match = link.href.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
+		if (!match) {
+			const assets = await handleProcessingAssetsFromUrl(link.href);
+		}
 		await handleAssetsPreloading(assets);
 	}
 })();
