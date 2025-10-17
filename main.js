@@ -26,10 +26,11 @@ function correctAssetPath(assetPath) {
 	return normalizeUrl(assetPath);
 }
 
+
 // === CORE LOADER ===
 async function handleProcessingAssetsFromUrl(url) {
+	if (!isItPageUrl(url)) return;
 	if (!url) return [];
-
 
 	url = normalizeUrl(url);
 	if (RapidCacheState.get(url) === 'loading') {
@@ -178,8 +179,7 @@ document.addEventListener('mouseover', e => {
 	if (a.dataset.preloading) return;
 
 	a.dataset.preloading = 'true';
-	const match = a.href.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
-	if (!match) {
+	if (isItPageUrl(a.href)) {
 		handleProcessingAssetsFromUrl(a.href)
 			.then(assets => handleAssetsPreloading(assets))
 			.finally(() => {
@@ -189,14 +189,19 @@ document.addEventListener('mouseover', e => {
 
 });
 
+function isItPageUrl(url) {
+	const match = url.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)$/i);
+	if (match) return false
+	return true
+}
+
 // === OPTIONAL: preload pagination or other known links ===
 (async () => {
 	const rapidPreLoadAllPages = true;
 	let links = [...document.querySelectorAll('a[href*="page-"], a[href*="?page="]')];
 	if (!rapidPreLoadAllPages && links.length > 1) links = [links[0]];
 	for (const link of links) {
-		const match = link.href.match(/(.*)\.(css|js|jpg|jpeg|png|gif|webp|avif)(?:\.(webp|avif))$/i);
-		if (!match) {
+		if (isItPageUrl(link.href)) {
 			const assets = await handleProcessingAssetsFromUrl(link.href);
 			await handleAssetsPreloading(assets);
 		}
@@ -214,6 +219,7 @@ async function preloadAllSiteContent() {
 
 	let i = 0;
 	for (const url of uniqueLinks) {
+		if (!isItPageUrl(url)) continue;
 		i++;
 		console.log(`➡️ [${ i }/${ uniqueLinks.length } ] Preloading page: ${ url }`);
 		const assets = await handleProcessingAssetsFromUrl(url);
